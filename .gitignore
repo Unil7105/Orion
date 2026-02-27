@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 vscode-extension/out/
+*.vsix
 
 # Python
 agent-backend/venv/

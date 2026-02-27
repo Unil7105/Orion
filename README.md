@@ -97,6 +97,23 @@ npm run compile
 2. Press **F5** to launch the Extension Development Host window
 3. Look for the **🤖 AI Agent** icon in the left Activity Bar
 
+### 4. Package as a VSIX (Optional)
+
+If you'd like to install the extension permanently in your main VS Code editor instead of running it in a development host:
+
+```bash
+cd vscode-extension
+npm run compile
+npx @vscode/vsce package
+```
+
+This will generate a `my-ai-agent-0.0.1.vsix` wrapper.
+To install it:
+1. Open your VS Code **Extensions** view (`Cmd+Shift+X` or `Ctrl+Shift+X`)
+2. Click the `...` menu in the top right corner
+3. Select **Install from VSIX...**
+4. Choose the generated `.vsix` file!
+
 ---
 
 ## ⌨️ Commands & Keybindings

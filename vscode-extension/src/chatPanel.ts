@@ -31,7 +31,7 @@ export class ChatPanel {
     this._panel = panel;
     this._context = ctx;
     this._history = ctx.globalState.get<any[]>(HISTORY_KEY) || [];
-    this._panel.webview.html = this._getHtml();
+    this._panel.webview.html = ChatPanel.getChatHtml();
 
     if (this._history.length > 0) {
       this._panel.webview.postMessage({ type: "restoreHistory", history: this._history });
@@ -89,7 +89,7 @@ export class ChatPanel {
     this._saveHistory();
   }
 
-  private _getHtml(): string {
+  public static getChatHtml(): string {
     return /*html*/`<!DOCTYPE html>
 <html>
 <head>
@@ -166,7 +166,9 @@ export class ChatPanel {
     color:var(--text-secondary); padding:7px 14px; border-radius:20px;
     font-size:11px; font-family:inherit; cursor:pointer;
     transition:all .15s ease; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:6px;
   }
+  .suggestion-chip svg { width:13px; height:13px; flex-shrink:0; }
   .suggestion-chip:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
 
   /* === User message === */
@@ -401,14 +403,14 @@ export class ChatPanel {
 
   <div id="messages">
     <div class="welcome" id="welcome">
-      <div class="welcome-glow">✦</div>
+      <div class="welcome-glow"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg></div>
       <h3>How can I help?</h3>
       <p>Ask me to read files, write code, run commands, or explain anything in your project.</p>
       <div class="suggestions">
-        <button class="suggestion-chip" onclick="useSuggestion('Explain this project structure')">📁 Explain project</button>
-        <button class="suggestion-chip" onclick="useSuggestion('Read and explain main.py')">📄 Read a file</button>
-        <button class="suggestion-chip" onclick="useSuggestion('Find all TODO comments')">🔍 Find TODOs</button>
-        <button class="suggestion-chip" onclick="useSuggestion('List all files in this directory')">📋 List files</button>
+        <button class="suggestion-chip" onclick="useSuggestion('Explain this project structure')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Explain project</button>
+        <button class="suggestion-chip" onclick="useSuggestion('Read and explain main.py')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Read a file</button>
+        <button class="suggestion-chip" onclick="useSuggestion('Find all TODO comments')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Find TODOs</button>
+        <button class="suggestion-chip" onclick="useSuggestion('List all files in this directory')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14h6"/><path d="M9 18h6"/><path d="M9 10h6"/></svg> List files</button>
       </div>
     </div>
   </div>
@@ -705,14 +707,14 @@ function send() {
 function clearChat() {
   msgs.innerHTML =
     '<div class="welcome" id="welcome">' +
-    '<div class="welcome-glow">✦</div>' +
+    '<div class="welcome-glow"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z"/></svg></div>' +
     '<h3>How can I help?</h3>' +
     '<p>Ask me to read files, write code, run commands, or explain anything in your project.</p>' +
     '<div class="suggestions">' +
-    '<button class="suggestion-chip" onclick="useSuggestion(\\\'Explain this project structure\\\')">📁 Explain project</button>' +
-    '<button class="suggestion-chip" onclick="useSuggestion(\\\'Read and explain main.py\\\')">📄 Read a file</button>' +
-    '<button class="suggestion-chip" onclick="useSuggestion(\\\'Find all TODO comments\\\')">🔍 Find TODOs</button>' +
-    '<button class="suggestion-chip" onclick="useSuggestion(\\\'List all files in this directory\\\')">📋 List files</button>' +
+    '<button class="suggestion-chip" onclick="useSuggestion(\\\'Explain this project structure\\\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Explain project</button>' +
+    '<button class="suggestion-chip" onclick="useSuggestion(\\\'Read and explain main.py\\\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> Read a file</button>' +
+    '<button class="suggestion-chip" onclick="useSuggestion(\\\'Find all TODO comments\\\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Find TODOs</button>' +
+    '<button class="suggestion-chip" onclick="useSuggestion(\\\'List all files in this directory\\\')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 14h6"/><path d="M9 18h6"/><path d="M9 10h6"/></svg> List files</button>' +
     '</div>' +
     '</div>';
   vscode.postMessage({ type: "clearChat" });
@@ -734,8 +736,8 @@ window.addEventListener("message", e => {
     showTyping();
   } else if (data.type === "chunk" && !currentBody) {
     removeTyping();
-    if (data.text.startsWith("🔧")) {
-      addToolBadge(data.text.replace("🔧 ", ""));
+    if (data.text.startsWith("[TOOL]")) {
+      addToolBadge(data.text.replace("[TOOL] ", ""));
       return;
     }
     const agentBlock = addMessage("agent", "", true);
@@ -743,9 +745,9 @@ window.addEventListener("message", e => {
     currentBody.setAttribute("data-raw", data.text);
     currentBody.innerHTML = formatMarkdown(data.text);
   } else if (data.type === "chunk" && currentBody) {
-    if (data.text.startsWith("🔧")) {
+    if (data.text.startsWith("[TOOL]")) {
       currentBody = null;
-      addToolBadge(data.text.replace("🔧 ", ""));
+      addToolBadge(data.text.replace("[TOOL] ", ""));
       return;
     }
     const raw = (currentBody.getAttribute("data-raw") || "") + data.text;
@@ -793,5 +795,70 @@ document.addEventListener("click", e => {
 </script>
   </body>
   </html>`;
+  }
+}
+
+export class ChatViewProvider implements vscode.WebviewViewProvider {
+  public static readonly viewType = 'myAgent.chatView';
+  private _view?: vscode.WebviewView;
+  private _history: any[] = [];
+
+  constructor(private readonly _context: vscode.ExtensionContext) {
+    this._history = _context.globalState.get<any[]>(HISTORY_KEY) || [];
+  }
+
+  public resolveWebviewView(
+    webviewView: vscode.WebviewView,
+    context: vscode.WebviewViewResolveContext,
+    _token: vscode.CancellationToken,
+  ) {
+    this._view = webviewView;
+    webviewView.webview.options = { enableScripts: true };
+    webviewView.webview.html = ChatPanel.getChatHtml();
+
+    if (this._history.length > 0) {
+      webviewView.webview.postMessage({ type: "restoreHistory", history: this._history });
+    }
+
+    webviewView.webview.onDidReceiveMessage(async (msg) => {
+      if (msg.type === "userMessage") {
+        this._history.push({ role: "user", content: msg.text });
+        this._saveHistory();
+        const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "";
+        await this.streamResponse(streamChat(msg.text, this._history, workspacePath));
+      } else if (msg.type === "clearChat") {
+        this._history = [];
+        this._saveHistory();
+      } else if (msg.type === "searchFiles") {
+        await this._handleFileSearch(msg.query);
+      }
+    });
+  }
+
+  private _saveHistory() {
+    this._context.globalState.update(HISTORY_KEY, this._history);
+  }
+
+  private async _handleFileSearch(query: string) {
+    try {
+      const files = await vscode.workspace.findFiles(`**/*${query}*`, '**/node_modules/**', 20);
+      const results = files.map(f => ({ path: f.fsPath, name: vscode.workspace.asRelativePath(f) }));
+      this._view?.webview.postMessage({ type: "fileResults", files: results });
+    } catch {
+      this._view?.webview.postMessage({ type: "fileResults", files: [] });
+    }
+  }
+
+  async streamResponse(gen: AsyncGenerator<string>) {
+    if (!this._view) return;
+    this._view.webview.postMessage({ type: "startResponse" });
+    let fullResponse = "";
+    for await (const chunk of gen) {
+      fullResponse += chunk;
+      this._view.webview.postMessage({ type: "chunk", text: chunk });
+    }
+    this._view.webview.postMessage({ type: "endResponse" });
+    this._history.push({ role: "assistant", content: fullResponse });
+    this._saveHistory();
   }
 }

@@ -2,13 +2,19 @@
 // Entry point — registers all commands and providers
 
 import * as vscode from "vscode";
-import { ChatPanel } from "./chatPanel";
+import { ChatPanel, ChatViewProvider } from "./chatPanel";
 import { getSuggestion, explainFile } from "./agentClient";
 
 export function activate(ctx: vscode.ExtensionContext) {
     console.log("My AI Agent extension is now active!");
 
-    // Command 1: Open the chat sidebar
+    // Register Sidebar Provider
+    const sidebarProvider = new ChatViewProvider(ctx);
+    ctx.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(ChatViewProvider.viewType, sidebarProvider)
+    );
+
+    // Command 1: Open the chat sidebar (Tab Panel backup)
     ctx.subscriptions.push(
         vscode.commands.registerCommand("myAgent.openChat", () => {
             ChatPanel.createOrShow(ctx);

@@ -83,7 +83,7 @@ async def run_agent(user_message: str, history: list, workspace_path: str = ""):
             if before_tool:
                 yield before_tool + "\n"
 
-            yield f"🔧 Using tool: {tool_name}\n"
+            yield f"[TOOL] Using tool: {tool_name}\n"
 
             result = execute_tool(tool_name, tool_args, workspace_path)
 
