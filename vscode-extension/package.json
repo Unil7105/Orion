@@ -1,0 +1,64 @@
+{
+  "name": "my-ai-agent",
+  "displayName": "My AI Agent",
+  "description": "AI coding agent for VS Code — powered by local LLMs (Ollama)",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "myAgent.openChat",
+        "title": "My Agent: Open Chat"
+      },
+      {
+        "command": "myAgent.explainFile",
+        "title": "My Agent: Explain This File"
+      },
+      {
+        "command": "myAgent.suggestInline",
+        "title": "My Agent: Suggest Completion"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "myAgentPanel",
+          "title": "AI Agent",
+          "icon": "$(robot)"
+        }
+      ]
+    },
+    "views": {
+      "myAgentPanel": [
+        {
+          "type": "webview",
+          "id": "myAgent.chatView",
+          "name": "Chat"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "myAgent.suggestInline",
+        "key": "ctrl+shift+a",
+        "mac": "cmd+shift+a"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}

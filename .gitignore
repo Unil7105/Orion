@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build output
+vscode-extension/out/
+
+# Python
+agent-backend/venv/
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# OS
+.DS_Store
