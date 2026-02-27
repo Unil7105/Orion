@@ -25,6 +25,7 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     message: str
     history: list = []
+    workspace_path: str = ""
 
 class FileRequest(BaseModel):
     file_content: str
@@ -59,7 +60,7 @@ async def health():
 async def chat(req: ChatRequest):
     """Chat endpoint — streams responses from the agent."""
     async def stream():
-        async for chunk in run_agent(req.message, req.history):
+        async for chunk in run_agent(req.message, req.history, req.workspace_path):
             yield chunk
     return StreamingResponse(stream(), media_type="text/plain")
 

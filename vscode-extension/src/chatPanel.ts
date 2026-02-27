@@ -1,5 +1,5 @@
 // vscode-extension/src/chatPanel.ts
-// Sidebar chat WebView UI — Modern design with suggestions, alignment, and @mentions
+// Sidebar chat WebView UI — Cursor-style premium design
 
 import * as vscode from "vscode";
 import { streamChat } from "./agentClient";
@@ -33,22 +33,20 @@ export class ChatPanel {
     this._history = ctx.globalState.get<any[]>(HISTORY_KEY) || [];
     this._panel.webview.html = this._getHtml();
 
-    // Restore previous messages in the UI
     if (this._history.length > 0) {
       this._panel.webview.postMessage({ type: "restoreHistory", history: this._history });
     }
 
-    // Clean up when user closes the panel
     this._panel.onDidDispose(() => {
       ChatPanel.currentPanel = undefined;
     });
 
-    // Receive messages from the WebView HTML
     this._panel.webview.onDidReceiveMessage(async (msg) => {
       if (msg.type === "userMessage") {
         this._history.push({ role: "user", content: msg.text });
         this._saveHistory();
-        await this.streamResponse(streamChat(msg.text, this._history));
+        const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || "";
+        await this.streamResponse(streamChat(msg.text, this._history, workspacePath));
       } else if (msg.type === "clearChat") {
         this._history = [];
         this._saveHistory();
@@ -95,341 +93,351 @@ export class ChatPanel {
     return /*html*/`<!DOCTYPE html>
 <html>
 <head>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-    :root {
-      --bg-primary: var(--vscode-editor-background);
-      --bg-secondary: var(--vscode-sideBar-background, #1e1e2e);
-      --bg-input: var(--vscode-input-background, #181825);
-      --border-color: var(--vscode-panel-border, rgba(255,255,255,0.06));
-      --text-primary: var(--vscode-editor-foreground, #cdd6f4);
-      --text-secondary: var(--vscode-descriptionForeground, #a6adc8);
-      --text-muted: var(--vscode-disabledForeground, #6c7086);
-      --accent: var(--vscode-button-background, #89b4fa);
-      --accent-hover: var(--vscode-button-hoverBackground, #74c7ec);
-      --user-bubble: rgba(137, 180, 250, 0.12);
-      --user-border: rgba(137, 180, 250, 0.22);
-      --agent-bubble: rgba(166, 227, 161, 0.06);
-      --agent-border: rgba(166, 227, 161, 0.12);
-      --tool-bg: rgba(249, 226, 175, 0.08);
-      --tool-border: rgba(249, 226, 175, 0.2);
-      --code-bg: rgba(0, 0, 0, 0.3);
-      --danger: #f38ba8;
-      --success: #a6e3a1;
-      --scroll-thumb: rgba(255,255,255,0.1);
-      --scroll-thumb-hover: rgba(255,255,255,0.2);
-      --mention-bg: rgba(137,180,250,0.15);
-      --mention-border: rgba(137,180,250,0.3);
-    }
+  :root {
+    --bg-primary: #1a1b26;
+    --bg-secondary: #16171f;
+    --bg-tertiary: #1e1f2e;
+    --bg-hover: rgba(255,255,255,0.04);
+    --bg-input: #1e1f2e;
+    --border: rgba(255,255,255,0.06);
+    --border-focus: rgba(120,130,255,0.35);
+    --text-primary: #c9cdd6;
+    --text-secondary: #8b8fa3;
+    --text-muted: #5a5e72;
+    --accent: #7c83f7;
+    --accent-dim: rgba(124,131,247,0.12);
+    --blue-file: #5b9af5;
+    --blue-file-bg: rgba(91,154,245,0.1);
+    --blue-file-border: rgba(91,154,245,0.2);
+    --green: #4ec994;
+    --red: #e95f6a;
+    --yellow: #e8b95a;
+    --code-bg: rgba(0,0,0,0.25);
+    --scroll-thumb: rgba(255,255,255,0.08);
+    --scroll-hover: rgba(255,255,255,0.14);
+  }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { margin:0; padding:0; box-sizing:border-box; }
 
-    body {
-      font-family: 'Inter', var(--vscode-font-family, sans-serif);
-      font-size: 13px;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      overflow: hidden;
-      line-height: 1.6;
-    }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 13px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
 
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--scroll-thumb); border-radius:3px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--scroll-hover); }
 
-    /* ===== HEADER ===== */
-    .header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border-color);
-      background: var(--bg-secondary);
-      flex-shrink: 0;
-    }
-    .header-left { display: flex; align-items: center; gap: 10px; }
-    .header-icon {
-      width: 28px; height: 28px; border-radius: 8px;
-      background: linear-gradient(135deg, #89b4fa 0%, #cba6f7 100%);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 13px; color: #fff;
-    }
-    .header-title { font-size: 13px; font-weight: 600; }
-    .header-subtitle { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
-    .clear-btn {
-      background: transparent; border: 1px solid var(--border-color);
-      color: var(--text-secondary); padding: 4px 10px; cursor: pointer;
-      border-radius: 6px; font-size: 11px; font-family: inherit;
-      transition: all 0.15s ease; display: flex; align-items: center; gap: 4px;
-    }
-    .clear-btn:hover { background: rgba(243,139,168,0.1); border-color: var(--danger); color: var(--danger); }
+  /* ===== MESSAGES AREA ===== */
+  #messages {
+    flex:1; overflow-y:auto; padding:12px 0;
+    display:flex; flex-direction:column; gap:4px;
+  }
 
-    /* ===== MESSAGES ===== */
-    #messages {
-      flex: 1; overflow-y: auto; padding: 14px;
-      display: flex; flex-direction: column; gap: 6px;
-    }
+  /* Welcome */
+  .welcome {
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:40px 20px; flex:1; animation:fadeIn .4s ease;
+  }
+  .welcome-glow {
+    width:56px; height:56px; border-radius:16px;
+    background: linear-gradient(135deg, #7c83f7, #a78bfa);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; color:#fff; margin-bottom:16px;
+    box-shadow: 0 0 30px rgba(124,131,247,0.25);
+  }
+  .welcome h3 { font-size:16px; font-weight:600; color:#e2e4ea; margin-bottom:6px; }
+  .welcome p { font-size:12px; color:var(--text-muted); max-width:260px; text-align:center; line-height:1.5; }
+  .suggestions { display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:16px; max-width:320px; }
+  .suggestion-chip {
+    background:var(--bg-tertiary); border:1px solid var(--border);
+    color:var(--text-secondary); padding:7px 14px; border-radius:20px;
+    font-size:11px; font-family:inherit; cursor:pointer;
+    transition:all .15s ease; white-space:nowrap;
+  }
+  .suggestion-chip:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
 
-    /* Welcome */
-    .welcome { text-align: center; padding: 28px 14px; animation: fadeIn 0.5s ease; }
-    .welcome-icon { font-size: 32px; margin-bottom: 10px; }
-    .welcome h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
-    .welcome p { font-size: 12px; color: var(--text-muted); max-width: 240px; margin: 0 auto; line-height: 1.5; }
+  /* === User message === */
+  .user-msg {
+    padding:8px 16px; margin:2px 16px;
+    background:var(--bg-tertiary); border:1px solid var(--border);
+    border-radius:10px; font-size:13px; line-height:1.6;
+    color:var(--text-primary); animation:slideIn .2s ease;
+    word-wrap:break-word; overflow-wrap:break-word;
+  }
 
-    /* Suggestions */
-    .suggestions {
-      display: flex; flex-wrap: wrap; gap: 6px;
-      justify-content: center; margin-top: 14px;
-    }
-    .suggestion-chip {
-      background: var(--bg-input); border: 1px solid var(--border-color);
-      color: var(--text-secondary); padding: 6px 12px; border-radius: 18px;
-      font-size: 11px; font-family: inherit; cursor: pointer;
-      transition: all 0.15s ease; white-space: nowrap;
-    }
-    .suggestion-chip:hover {
-      border-color: var(--accent); color: var(--accent);
-      background: rgba(137,180,250,0.08);
-    }
+  /* === Agent message === */
+  .agent-msg {
+    padding:6px 18px; animation:slideIn .2s ease;
+  }
+  .agent-msg .msg-body { font-size:13px; line-height:1.7; color:var(--text-primary); }
+  .agent-msg .msg-body p { margin-bottom:8px; }
+  .agent-msg .msg-body p:last-child { margin-bottom:0; }
+  .agent-msg .msg-body ul, .agent-msg .msg-body ol { margin:6px 0 6px 18px; }
+  .agent-msg .msg-body li { margin-bottom:3px; }
+  .agent-msg .msg-body strong { color:#e2e4ea; font-weight:600; }
+  .agent-msg .msg-body a { color:var(--blue-file); text-decoration:none; }
+  .agent-msg .msg-body a:hover { text-decoration:underline; }
 
-    /* Message container */
-    .msg {
-      display: flex; gap: 8px; max-width: 88%;
-      animation: slideIn 0.25s ease;
-    }
-    .msg.user { align-self: flex-end; flex-direction: row-reverse; }
-    .msg.agent { align-self: flex-start; }
+  /* File reference pill */
+  .file-ref {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:4px 10px; margin:3px 0;
+    background:var(--bg-tertiary); border:1px solid var(--border);
+    border-radius:7px; font-size:12px; color:var(--text-primary);
+    cursor:pointer; transition:all .15s ease;
+  }
+  .file-ref:hover { border-color:var(--blue-file-border); background:var(--blue-file-bg); }
+  .file-ref .file-icon { display:flex; align-items:center; }
+  .file-ref .file-icon svg { width:14px; height:14px; }
+  .file-ref .file-name { font-weight:500; }
 
-    .msg-avatar {
-      width: 24px; height: 24px; border-radius: 7px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; flex-shrink: 0; margin-top: 2px;
-    }
-    .user .msg-avatar { background: linear-gradient(135deg, #89b4fa 0%, #74c7ec 100%); }
-    .agent .msg-avatar { background: linear-gradient(135deg, #a6e3a1 0%, #94e2d5 100%); }
+  /* Inline code */
+  .msg-body code {
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 11.5px;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #d4b9f7;
+  }
 
-    .msg-content { flex: 1; min-width: 0; }
+  /* Code block */
+  .msg-body pre {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    overflow-x: auto;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .msg-body pre code {
+    background:none; padding:0; font-size:12px; color:var(--text-primary);
+  }
 
-    .msg-name {
-      font-size: 10px; font-weight: 600; margin-bottom: 3px;
-      display: flex; align-items: center; gap: 6px;
-    }
-    .user .msg-name { color: #89b4fa; justify-content: flex-end; }
-    .agent .msg-name { color: #a6e3a1; }
-    .msg-time { font-size: 9px; color: var(--text-muted); font-weight: 400; }
+  /* Feedback row — only on last agent msg */
+  .feedback-row {
+    display:flex; align-items:center; gap:4px; padding:4px 18px 2px;
+  }
+  .fb-btn {
+    display:inline-flex; align-items:center; gap:4px;
+    background:transparent; border:none; color:var(--text-muted);
+    font-size:11px; cursor:pointer; padding:3px 6px; border-radius:4px;
+    font-family:inherit; transition:all .12s ease;
+  }
+  .fb-btn:hover { color:var(--text-secondary); background:var(--bg-hover); }
+  .fb-btn svg { width:12px; height:12px; }
 
-    .msg-bubble {
-      padding: 9px 13px; border-radius: 14px;
-      font-size: 13px; line-height: 1.6;
-      word-wrap: break-word; overflow-wrap: break-word;
-    }
-    .user .msg-bubble {
-      background: var(--user-bubble); border: 1px solid var(--user-border);
-      border-top-right-radius: 4px;
-    }
-    .agent .msg-bubble {
-      background: var(--agent-bubble); border: 1px solid var(--agent-border);
-      border-top-left-radius: 4px;
-    }
+  /* Tool badge — no box, shimmer on text */
+  .tool-badge {
+    display:inline-flex; align-items:center; gap:7px;
+    padding:4px 18px; margin:2px 0;
+    background:transparent; border:none;
+    font-size:12px; animation:slideIn .2s ease;
+  }
+  .tool-badge .tb-icon { display:flex; align-items:center; flex-shrink:0; }
+  .tool-badge .tb-icon svg { width:14px; height:14px; }
+  .tool-badge .tb-text {
+    font-weight:500;
+    background: linear-gradient(90deg, var(--text-muted) 0%, var(--text-muted) 35%, #c0c6f7 50%, var(--text-muted) 65%, var(--text-muted) 100%);
+    background-size:200% 100%;
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+    background-clip:text;
+    animation:textShimmer 2s infinite linear;
+  }
 
-    /* File mention tag */
-    .file-tag {
-      display: inline-flex; align-items: center; gap: 3px;
-      background: var(--mention-bg); border: 1px solid var(--mention-border);
-      border-radius: 4px; padding: 1px 6px; font-size: 11px;
-      color: #89b4fa; font-family: var(--vscode-editor-font-family, monospace);
-      margin: 0 2px;
-    }
-    .file-tag::before { content: "📄"; font-size: 10px; }
+  /* Typing indicator */
+  .typing-row { padding:14px 18px; animation:fadeIn .3s ease; }
+  .typing-dots {
+    display:inline-flex; align-items:center; gap:4px; padding:6px 0;
+  }
+  .typing-dots span {
+    width:5px; height:5px; border-radius:50%;
+    background:var(--accent); animation:bounce 1.2s infinite ease-in-out;
+  }
+  .typing-dots span:nth-child(2) { animation-delay:.15s; }
+  .typing-dots span:nth-child(3) { animation-delay:.3s; }
 
-    /* Tool badge */
-    .tool-badge {
-      display: inline-flex; align-items: center; gap: 5px;
-      padding: 4px 10px; background: var(--tool-bg); border: 1px solid var(--tool-border);
-      border-radius: 8px; font-size: 11px; color: #f9e2af;
-      margin: 4px 0; animation: slideIn 0.25s ease; align-self: flex-start;
-    }
+  /* ===== MENTION DROPDOWN ===== */
+  .mention-dropdown {
+    position:absolute; bottom:100%; left:0; right:0;
+    max-height:200px; overflow-y:auto;
+    background:var(--bg-secondary); border:1px solid var(--border);
+    border-radius:10px; margin-bottom:4px;
+    box-shadow:0 -8px 30px rgba(0,0,0,0.4);
+    display:none; z-index:100;
+  }
+  .mention-dropdown.visible { display:block; }
+  .mention-item {
+    display:flex; align-items:center; gap:8px;
+    padding:0 12px; height:36px; cursor:pointer; font-size:12px;
+    transition:background .08s ease;
+    border-left: 2px solid transparent;
+  }
+  /* The active state is now dynamically added via JS style to match requirement */
+  .mention-item-icon { display:flex; align-items:center; flex-shrink:0; width:20px; height:20px; }
+  .mention-item-name {
+    flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    color:#fff; font-weight:500; font-size:13px;
+  }
+  .mention-item-path {
+    font-size:11px; color:#6b7280; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; max-width:160px; text-align:right;
+  }
 
-    /* Code blocks */
-    .msg-bubble pre {
-      background: var(--code-bg); border: 1px solid var(--border-color);
-      border-radius: 8px; padding: 10px 12px; margin: 6px 0;
-      overflow-x: auto; font-size: 12px; line-height: 1.5;
-    }
-    .msg-bubble code {
-      font-family: var(--vscode-editor-font-family, 'Fira Code', monospace);
-      font-size: 12px;
-    }
-    .msg-bubble p code {
-      background: var(--code-bg); padding: 2px 5px; border-radius: 4px;
-    }
+  /* ===== BOTTOM INPUT AREA ===== */
+  .input-area {
+    background: #1a1a2e;
+    flex-shrink: 0; position: relative;
+    padding: 12px 16px 20px;
+    border-top: none;
+  }
 
-    /* Typing */
-    .typing {
-      display: flex; gap: 8px; align-items: flex-start;
-      animation: fadeIn 0.3s ease; align-self: flex-start;
-    }
-    .typing-avatar {
-      width: 24px; height: 24px; border-radius: 7px;
-      background: linear-gradient(135deg, #a6e3a1 0%, #94e2d5 100%);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 11px; flex-shrink: 0;
-    }
-    .typing-dots {
-      display: flex; align-items: center; gap: 4px;
-      padding: 10px 14px; background: var(--agent-bubble);
-      border: 1px solid var(--agent-border); border-radius: 14px; border-top-left-radius: 4px;
-    }
-    .typing-dots span {
-      width: 5px; height: 5px; border-radius: 50%;
-      background: #a6e3a1; animation: bounce 1.2s infinite ease-in-out;
-    }
-    .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
-    .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+  .attached-files { display:flex; flex-wrap:wrap; gap:4px; padding:0 0 8px; }
+  .attached-files:empty { display:none; padding:0; }
+  .attached-file {
+    display:inline-flex; align-items:center; gap:4px;
+    background:var(--blue-file-bg); border:1px solid var(--blue-file-border);
+    border-radius:6px; padding:3px 8px; font-size:11px; color:var(--blue-file);
+  }
+  .attached-file svg { width:12px; height:12px; flex-shrink:0; }
+  .attached-file-remove { cursor:pointer; opacity:.5; font-size:11px; margin-left:2px; transition:opacity .1s; }
+  .attached-file-remove:hover { opacity:1; }
 
-    /* ===== @ MENTION DROPDOWN ===== */
-    .mention-dropdown {
-      position: absolute; bottom: 100%; left: 0; right: 0;
-      max-height: 180px; overflow-y: auto;
-      background: var(--bg-input); border: 1px solid var(--accent);
-      border-radius: 10px; margin-bottom: 6px;
-      box-shadow: 0 -4px 20px rgba(0,0,0,0.3);
-      display: none; z-index: 100;
-    }
-    .mention-dropdown.visible { display: block; }
-    .mention-item {
-      display: flex; align-items: center; gap: 8px;
-      padding: 7px 12px; cursor: pointer; font-size: 12px;
-      transition: background 0.1s ease;
-    }
-    .mention-item:hover, .mention-item.active {
-      background: rgba(137,180,250,0.12);
-    }
-    .mention-item-icon { font-size: 13px; flex-shrink: 0; }
-    .mention-item-name {
-      flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      color: var(--text-primary);
-    }
-    .mention-item-path {
-      font-size: 10px; color: var(--text-muted);
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      max-width: 140px;
-    }
-    .mention-header {
-      padding: 6px 12px; font-size: 10px; font-weight: 600;
-      color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;
-      border-bottom: 1px solid var(--border-color);
-    }
+  .input-container {
+    background: #0d0d1a;
+    border: 1px solid #2a2a3e;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    transition: border-color .15s ease;
+  }
+  .input-container:focus-within { border-color: rgba(124,131,247,0.4); box-shadow: 0 0 0 1px rgba(124,131,247,0.2); }
 
-    /* ===== INPUT AREA ===== */
-    .input-area {
-      padding: 10px 14px; border-top: 1px solid var(--border-color);
-      background: var(--bg-secondary); flex-shrink: 0; position: relative;
-    }
+  #input {
+    width: 100%;
+    background: transparent; border: none;
+    color: #6b7280;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 13px; line-height: 1.5;
+    resize: none; outline: none;
+    max-height: 150px; min-height: 24px;
+    padding: 10px 12px 4px 12px;
+  }
+  #input::placeholder { color: #4b5563; }
 
-    /* Attached files bar */
-    .attached-files {
-      display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px;
-    }
-    .attached-files:empty { display: none; }
-    .attached-file {
-      display: inline-flex; align-items: center; gap: 4px;
-      background: var(--mention-bg); border: 1px solid var(--mention-border);
-      border-radius: 6px; padding: 3px 8px; font-size: 11px; color: #89b4fa;
-    }
-    .attached-file-remove {
-      cursor: pointer; opacity: 0.6; font-size: 12px; margin-left: 2px;
-    }
-    .attached-file-remove:hover { opacity: 1; }
+  /* Bottom toolbar inside input container */
+  .bottom-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px 8px 8px;
+    height: 36px;
+  }
 
-    .input-wrapper {
-      display: flex; align-items: flex-end; gap: 6px;
-      background: var(--bg-input); border: 1px solid var(--border-color);
-      border-radius: 12px; padding: 4px 4px 4px 12px;
-      transition: border-color 0.15s ease; position: relative;
-    }
-    .input-wrapper:focus-within {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(137,180,250,0.1);
-    }
-    #input {
-      flex: 1; background: transparent; border: none; color: var(--text-primary);
-      font-family: inherit; font-size: 13px; line-height: 1.5;
-      resize: none; outline: none; max-height: 100px; min-height: 20px; padding: 5px 0;
-    }
-    #input::placeholder { color: var(--text-muted); }
-    .send-btn {
-      width: 30px; height: 30px; border-radius: 8px; border: none;
-      background: var(--accent); color: #1e1e2e; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      transition: all 0.15s ease; flex-shrink: 0;
-    }
-    .send-btn:hover:not(:disabled) { background: var(--accent-hover); transform: scale(1.05); }
-    .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-    .send-btn svg { width: 14px; height: 14px; }
+  .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 4px; }
 
-    .input-hint {
-      font-size: 10px; color: var(--text-muted); margin-top: 5px;
-      text-align: center;
-    }
-    .input-hint kbd {
-      background: var(--bg-input); padding: 1px 4px; border-radius: 3px;
-      border: 1px solid var(--border-color); font-family: inherit; font-size: 10px;
-    }
+  .icon-btn {
+    width: 28px; height: 28px; display: flex; align-items: center; justify-content: center;
+    background: transparent; border: none; color: #6b7280; cursor: pointer;
+    border-radius: 4px; transition: all .12s ease;
+  }
+  .icon-btn:hover { color: #a1a1aa; background: rgba(255,255,255,0.05); }
+  .icon-btn svg { width: 14px; height: 14px; }
 
-    /* Animations */
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-    @keyframes bounce {
-      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-      30% { transform: translateY(-3px); opacity: 1; }
-    }
-  </style>
+  .model-text {
+    display: flex; align-items: center; gap: 4px;
+    color: #6b7280; font-size: 11px; cursor: pointer;
+    background: transparent; border: none; padding: 4px 6px;
+    border-radius: 4px; font-family: inherit; transition: color .12s;
+  }
+  .model-text:hover { color: #a1a1aa; background: rgba(255,255,255,0.05); }
+  .model-text svg { width: 10px; height: 10px; opacity: 0.7; }
+
+  .send-btn-round {
+    width: 28px; height: 28px; border-radius: 50%; border: none;
+    background: #6c63ff; color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s ease; flex-shrink: 0; margin-left: 2px;
+  }
+  .send-btn-round:hover:not(:disabled) { background: #7c73ff; transform: scale(1.05); }
+  .send-btn-round:disabled { opacity: 0.4; cursor: not-allowed; }
+  .send-btn-round svg { width: 13px; height: 13px; }
+
+  /* Clear chat btn (top right subtle) */
+  .clear-float {
+    position:fixed; top:8px; right:8px; z-index:50;
+    width:28px; height:28px; display:flex; align-items:center; justify-content:center;
+    background:transparent; border:1px solid transparent;
+    color:var(--text-muted); cursor:pointer; border-radius:6px;
+    transition:all .12s ease;
+  }
+  .clear-float:hover { color:var(--red); background:rgba(233,95,106,0.08); border-color:rgba(233,95,106,0.2); }
+  .clear-float svg { width:14px; height:14px; }
+
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  @keyframes slideIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0);opacity:.4} 30%{transform:translateY(-3px);opacity:1} }
+  @keyframes textShimmer { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+</style>
 </head>
 <body>
-  <div class="header">
-    <div class="header-left">
-      <div class="header-icon">✦</div>
-      <div>
-        <div class="header-title">AI Agent</div>
-        <div class="header-subtitle">Powered by Ollama</div>
-      </div>
-    </div>
-    <button class="clear-btn" onclick="clearChat()">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
-      Clear
-    </button>
-  </div>
+  <button class="clear-float" onclick="clearChat()" title="Clear chat">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+  </button>
 
   <div id="messages">
     <div class="welcome" id="welcome">
-      <div class="welcome-icon">✦</div>
+      <div class="welcome-glow">✦</div>
       <h3>How can I help?</h3>
-      <p>Ask me to read files, write code, run commands, or explain anything.</p>
+      <p>Ask me to read files, write code, run commands, or explain anything in your project.</p>
       <div class="suggestions">
         <button class="suggestion-chip" onclick="useSuggestion('Explain this project structure')">📁 Explain project</button>
         <button class="suggestion-chip" onclick="useSuggestion('Read and explain main.py')">📄 Read a file</button>
-        <button class="suggestion-chip" onclick="useSuggestion('Find all TODO comments in the code')">🔍 Find TODOs</button>
+        <button class="suggestion-chip" onclick="useSuggestion('Find all TODO comments')">🔍 Find TODOs</button>
         <button class="suggestion-chip" onclick="useSuggestion('List all files in this directory')">📋 List files</button>
       </div>
     </div>
   </div>
 
   <div class="input-area">
-    <div class="mention-dropdown" id="mentionDropdown">
-      <div class="mention-header">Files</div>
+    <div class="mention-dropdown" id="mentionDropdown"></div>
+    <div class="input-container">
+      <div class="attached-files" id="attachedFiles"></div>
+      <textarea id="input" rows="1" placeholder="Ask anything, @ to mention, / for workflows"></textarea>
+      <div class="bottom-toolbar">
+        <div class="toolbar-left">
+          <button class="icon-btn" title="Attach context" onclick="/* Attach context handler */">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          </button>
+          <button class="model-text">
+            Fast
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+        <div class="toolbar-right">
+          <button class="icon-btn" title="Voice input">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          </button>
+          <button class="send-btn-round" id="sendBtn" onclick="send()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </button>
+        </div>
+      </div>
     </div>
-    <div class="attached-files" id="attachedFiles"></div>
-    <div class="input-wrapper">
-      <textarea id="input" rows="1" placeholder="Ask anything... type @ to mention a file"></textarea>
-      <button class="send-btn" id="sendBtn" onclick="send()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      </button>
-    </div>
-    <div class="input-hint"><kbd>Enter</kbd> send · <kbd>Shift+Enter</kbd> new line · <kbd>@</kbd> mention file</div>
   </div>
 
   <script>
@@ -448,18 +456,16 @@ export class ChatPanel {
     let mentionStartPos = -1;
     let mentionFiles = [];
     let mentionIndex = 0;
-    let attachedFiles = []; // {path, name}
+    let attachedFiles = [];
 
-    // Auto-resize textarea
+    const FILE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="#5b9af5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    const GEAR_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="#5b9af5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>';
+
     inputEl.addEventListener("input", () => {
       inputEl.style.height = "auto";
       inputEl.style.height = Math.min(inputEl.scrollHeight, 100) + "px";
       handleMentionInput();
     });
-
-    function getTime() {
-      return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
 
     function hideWelcome() { if (welcome) welcome.style.display = "none"; }
 
@@ -479,36 +485,28 @@ export class ChatPanel {
       return html;
     }
 
-    // ===== SUGGESTIONS =====
     function useSuggestion(text) {
       inputEl.value = text;
       inputEl.focus();
       send();
     }
 
-    // ===== @ MENTION =====
+    // ===== MENTION =====
     function handleMentionInput() {
       const val = inputEl.value;
       const cursorPos = inputEl.selectionStart;
-
-      // Find the last @ before cursor
       const beforeCursor = val.substring(0, cursorPos);
       const atIdx = beforeCursor.lastIndexOf("@");
-
       if (atIdx >= 0) {
         const charBefore = atIdx > 0 ? val[atIdx - 1] : " ";
         if (charBefore === " " || charBefore === "\\n" || atIdx === 0) {
           const query = beforeCursor.substring(atIdx + 1);
-          // If query has a space, mention is done
-          if (query.includes(" ")) {
-            closeMention();
-            return;
-          }
+          if (query.includes(" ")) { closeMention(); return; }
           mentionActive = true;
           mentionStartPos = atIdx;
           mentionQuery = query;
           mentionIndex = 0;
-          vscode.postMessage({ type: "searchFiles", query: query });
+          vscode.postMessage({ type: "searchFiles", query });
           return;
         }
       }
@@ -520,50 +518,85 @@ export class ChatPanel {
       mentionDropdown.classList.remove("visible");
     }
 
+    function getFileIcon(filename) {
+      const ext = filename.split('.').pop().toLowerCase();
+      switch (ext) {
+        case 'ts':
+        case 'tsx': return { label: 'TS', color: '#fff', bg: '#3178c6' };
+        case 'js':
+        case 'jsx': return { label: 'JS', color: '#000', bg: '#f7df1e' };
+        case 'py':  return { label: 'PY', color: '#fff', bg: '#3572a5' };
+        case 'css':
+        case 'scss':return { label: 'CS', color: '#fff', bg: '#563d7c' };
+        case 'html':return { label: '</>', color: '#fff', bg: '#e34c26' };
+        case 'json':return { label: '{}', color: '#fff', bg: '#40a0a0' };
+        case 'md':  return { label: 'M↓', color: '#fff', bg: '#555' };
+        case 'svg': return { label: '★', color: '#fff', bg: '#ff6b9d' };
+        case 'rs':  return { label: 'RS', color: '#fff', bg: '#ce422b' };
+        case 'go':  return { label: 'GO', color: '#fff', bg: '#00acd7' };
+        case 'config':
+        case 'toml':
+        case 'yaml':
+        case 'yml': return { label: '⚙', color: '#fff', bg: '#515151' };
+        default:    return { label: ' ', color: '#aaa', bg: '#2a2a3e' };
+      }
+    }
+
+    function getFileIconHtml(filename) {
+      const icon = getFileIcon(filename);
+      return '<div style="width:20px;height:20px;border-radius:4px;background:' + icon.bg + ';' +
+        'color:' + icon.color + ';font-size:9px;font-weight:700;display:flex;' +
+        'align-items:center;justify-content:center;">' + icon.label + '</div>';
+    }
+
     function renderMentionDropdown(files) {
       mentionFiles = files;
-      const items = mentionDropdown.querySelectorAll(".mention-item");
-      items.forEach(i => i.remove());
-
-      if (files.length === 0) {
-        closeMention();
-        return;
-      }
-
+      mentionDropdown.innerHTML = "";
+      if (files.length === 0) { closeMention(); return; }
       files.forEach((f, idx) => {
         const item = document.createElement("div");
-        item.className = "mention-item" + (idx === mentionIndex ? " active" : "");
-        const ext = f.name.split(".").pop() || "";
-        const icon = getFileIcon(ext);
+        item.className = "mention-item";
+        const fileName = f.name.split("/").pop();
+        const dirPath = f.name.split("/").slice(0, -1).join("/");
         item.innerHTML =
-          '<span class="mention-item-icon">' + icon + '</span>' +
-          '<span class="mention-item-name">' + escapeHtml(f.name.split("/").pop()) + '</span>' +
-          '<span class="mention-item-path">' + escapeHtml(f.name) + '</span>';
+          '<span class="mention-item-icon">' + getFileIconHtml(f.name) + '</span>' +
+          '<span class="mention-item-name">' + escapeHtml(fileName) + '</span>' +
+          '<span class="mention-item-path">' + escapeHtml(dirPath || f.name) + '</span>';
+        
+        // Mouse hover syncs with index for unified styling
+        item.addEventListener("mouseenter", () => {
+          mentionIndex = idx;
+          updateHighlight();
+        });
         item.onclick = () => selectMention(f);
         mentionDropdown.appendChild(item);
       });
       mentionDropdown.classList.add("visible");
+      updateHighlight();
     }
 
-    function getFileIcon(ext) {
-      const icons = {
-        py: "🐍", js: "📜", ts: "📘", json: "📋", html: "🌐", css: "🎨",
-        md: "📝", txt: "📄", env: "🔒", yaml: "⚙️", yml: "⚙️",
-        sh: "💻", rs: "🦀", go: "🔹", java: "☕"
-      };
-      return icons[ext] || "📄";
+    function updateHighlight() {
+      const items = mentionDropdown.querySelectorAll('.mention-item');
+      items.forEach((el, i) => {
+        if (i === mentionIndex) {
+          el.style.background = 'rgba(255,255,255,0.08)';
+          el.style.borderLeft = '2px solid #6c63ff';
+          // Scroll into view if needed
+          el.scrollIntoView({ block: 'nearest' });
+        } else {
+          el.style.background = '';
+          el.style.borderLeft = '2px solid transparent';
+        }
+      });
     }
 
     function selectMention(file) {
-      // Replace @query with just @ marker, and add file to attached
       const val = inputEl.value;
       const before = val.substring(0, mentionStartPos);
       const after = val.substring(inputEl.selectionStart);
       inputEl.value = before + after;
       inputEl.focus();
       closeMention();
-
-      // Add to attached files (avoid dups)
       if (!attachedFiles.find(f => f.path === file.path)) {
         attachedFiles.push(file);
         renderAttachedFiles();
@@ -575,8 +608,7 @@ export class ChatPanel {
       attachedFiles.forEach((f, idx) => {
         const tag = document.createElement("div");
         tag.className = "attached-file";
-        tag.innerHTML =
-          '📄 ' + escapeHtml(f.name.split("/").pop()) +
+        tag.innerHTML = getFileIconHtml(f.name) + ' ' + escapeHtml(f.name.split("/").pop()) +
           '<span class="attached-file-remove" onclick="removeAttached(' + idx + ')">✕</span>';
         attachedFilesEl.appendChild(tag);
       });
@@ -590,196 +622,181 @@ export class ChatPanel {
     // ===== MESSAGES =====
     function addMessage(role, text, animate) {
       hideWelcome();
-      const div = document.createElement("div");
-      div.className = "msg " + role;
-      if (!animate) div.style.animation = "none";
 
-      const avatar = role === "user" ? "👤" : "✦";
-      const name = role === "user" ? "You" : "Agent";
-      const time = getTime();
-
-      div.innerHTML =
-        '<div class="msg-avatar">' + avatar + '</div>' +
-        '<div class="msg-content">' +
-          '<div class="msg-name">' + name + ' <span class="msg-time">' + time + '</span></div>' +
-          '<div class="msg-bubble"></div>' +
-        '</div>';
-
-      const bubble = div.querySelector(".msg-bubble");
-      if (role === "agent") {
-        bubble.innerHTML = formatMarkdown(text);
+      if (role === "user") {
+        const el = document.createElement("div");
+        el.className = "user-msg";
+        if (!animate) el.style.animation = "none";
+        el.textContent = text;
+        msgs.appendChild(el);
+        msgs.scrollTop = msgs.scrollHeight;
+        return el;
       } else {
-        // Render file mentions as tags in user messages
-        bubble.innerHTML = renderUserMessage(text);
-      }
-
-      msgs.appendChild(div);
-      msgs.scrollTop = msgs.scrollHeight;
-      return div;
-    }
-
-    function renderUserMessage(text) {
-      return escapeHtml(text);
-    }
-
-    function addToolBadge(text) {
-      const badge = document.createElement("div");
-      badge.className = "tool-badge";
-      badge.innerHTML = "🔧 " + escapeHtml(text);
-      msgs.appendChild(badge);
-      msgs.scrollTop = msgs.scrollHeight;
-    }
-
-    function showTyping() {
-      const div = document.createElement("div");
-      div.className = "typing"; div.id = "typing";
-      div.innerHTML =
-        '<div class="typing-avatar">✦</div>' +
-        '<div class="typing-dots"><span></span><span></span><span></span></div>';
-      msgs.appendChild(div);
-      msgs.scrollTop = msgs.scrollHeight;
-    }
-
-    function removeTyping() {
-      const t = document.getElementById("typing");
-      if (t) t.remove();
-    }
-
-    function send() {
-      const t = inputEl.value.trim();
-      if (!t && attachedFiles.length === 0) return;
-      if (isStreaming) return;
-
-      // Build the message: include attached file paths
-      let fullMessage = t;
-      if (attachedFiles.length > 0) {
-        const fileList = attachedFiles.map(f => f.path).join(", ");
-        fullMessage = "[Attached files: " + fileList + "]\\n\\n" + t;
-      }
-
-      // Show user message in UI (just the text part)
-      const displayText = t;
-      addMessage("user", displayText, true);
-
-      // Show attached files as tags under user message if any
-      if (attachedFiles.length > 0) {
-        const tagsDiv = document.createElement("div");
-        tagsDiv.style.cssText = "align-self:flex-end;display:flex;gap:4px;flex-wrap:wrap;margin-top:-4px;margin-bottom:4px;";
-        attachedFiles.forEach(f => {
-          const tag = document.createElement("span");
-          tag.className = "file-tag";
-          tag.textContent = f.name.split("/").pop();
-          tagsDiv.appendChild(tag);
-        });
-        msgs.appendChild(tagsDiv);
-      }
-
-      vscode.postMessage({ type: "userMessage", text: fullMessage });
-      inputEl.value = "";
-      inputEl.style.height = "auto";
-      attachedFiles = [];
-      renderAttachedFiles();
-      inputEl.focus();
-    }
-
-    function clearChat() {
-      msgs.innerHTML =
-        '<div class="welcome" id="welcome">' +
-          '<div class="welcome-icon">✦</div>' +
-          '<h3>How can I help?</h3>' +
-          '<p>Ask me to read files, write code, run commands, or explain anything.</p>' +
-          '<div class="suggestions">' +
-            '<button class="suggestion-chip" onclick="useSuggestion(\\\'Explain this project structure\\\')">📁 Explain project</button>' +
-            '<button class="suggestion-chip" onclick="useSuggestion(\\\'Read and explain main.py\\\')">📄 Read a file</button>' +
-            '<button class="suggestion-chip" onclick="useSuggestion(\\\'Find all TODO comments in the code\\\')">🔍 Find TODOs</button>' +
-            '<button class="suggestion-chip" onclick="useSuggestion(\\\'List all files in this directory\\\')">📋 List files</button>' +
-          '</div>' +
-        '</div>';
-      vscode.postMessage({ type: "clearChat" });
-    }
-
-    window.addEventListener("message", e => {
-      const data = e.data;
-      if (data.type === "restoreHistory") {
-        msgs.innerHTML = "";
-        if (data.history.length === 0) return;
-        hideWelcome();
-        data.history.forEach(m => addMessage(m.role, m.content, false));
+        const el = document.createElement("div");
+        el.className = "agent-msg";
+        if (!animate) el.style.animation = "none";
+        el.innerHTML = '<div class="msg-body"></div>';
+        const body = el.querySelector(".msg-body");
+        if (text) body.innerHTML = formatMarkdown(text);
+        msgs.appendChild(el);
         msgs.scrollTop = msgs.scrollHeight;
-      } else if (data.type === "fileResults") {
-        if (mentionActive) renderMentionDropdown(data.files);
-      } else if (data.type === "startResponse") {
-        isStreaming = true;
-        sendBtn.disabled = true;
-        showTyping();
-      } else if (data.type === "chunk" && !currentBody) {
-        removeTyping();
-        if (data.text.startsWith("🔧")) {
-          addToolBadge(data.text.replace("🔧 ", ""));
-          return;
-        }
-        const agentDiv = addMessage("agent", "", true);
-        currentBody = agentDiv.querySelector(".msg-bubble");
-        currentBody.setAttribute("data-raw", data.text);
-        currentBody.innerHTML = formatMarkdown(data.text);
-      } else if (data.type === "chunk" && currentBody) {
-        if (data.text.startsWith("🔧")) {
-          currentBody = null;
-          addToolBadge(data.text.replace("🔧 ", ""));
-          return;
-        }
-        const raw = (currentBody.getAttribute("data-raw") || "") + data.text;
-        currentBody.setAttribute("data-raw", raw);
-        currentBody.innerHTML = formatMarkdown(raw);
-        msgs.scrollTop = msgs.scrollHeight;
-      } else if (data.type === "endResponse") {
-        removeTyping();
-        currentBody = null;
-        isStreaming = false;
-        sendBtn.disabled = false;
-        inputEl.focus();
+        return el;
       }
-    });
+    }
 
-    inputEl.addEventListener("keydown", e => {
-      if (mentionActive) {
-        if (e.key === "ArrowDown") {
-          e.preventDefault();
-          mentionIndex = Math.min(mentionIndex + 1, mentionFiles.length - 1);
-          renderMentionDropdown(mentionFiles);
-          return;
-        }
-        if (e.key === "ArrowUp") {
-          e.preventDefault();
-          mentionIndex = Math.max(mentionIndex - 1, 0);
-          renderMentionDropdown(mentionFiles);
-          return;
-        }
-        if ((e.key === "Enter" || e.key === "Tab") && mentionFiles.length > 0) {
-          e.preventDefault();
-          selectMention(mentionFiles[mentionIndex]);
-          return;
-        }
-        if (e.key === "Escape") {
-          e.preventDefault();
-          closeMention();
-          return;
-        }
-      }
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        send();
-      }
-    });
+    function addFeedbackRow() {
+      const row = document.createElement("div");
+      row.className = "feedback-row";
+      row.innerHTML =
+        '<button class="fb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 00-6 0v1H5a2 2 0 00-2 2v11a2 2 0 002 2h11.28a2 2 0 001.9-1.37l2.2-6.6A2 2 0 0019.47 9H14z"/></svg> Good</button>' +
+        '<button class="fb-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15v4a3 3 0 006 0v-1h3a2 2 0 002-2V5a2 2 0 00-2-2H7.72a2 2 0 00-1.9 1.37l-2.2 6.6A2 2 0 004.53 15H10z"/></svg> Bad</button>';
+      msgs.appendChild(row);
+    }
 
-    // Close mention on click outside
-    document.addEventListener("click", e => {
-      if (!e.target.closest(".mention-dropdown") && !e.target.closest("#input")) {
-        closeMention();
-      }
+function addToolBadge(text) {
+  const badge = document.createElement("div");
+  badge.className = "tool-badge";
+  badge.innerHTML = '<span class="tb-icon">' + FILE_SVG + '</span><span class="tb-text">' + escapeHtml(text) + '</span>';
+  msgs.appendChild(badge);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping() {
+  const div = document.createElement("div");
+  div.className = "typing-row"; div.id = "typing";
+  div.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function removeTyping() {
+  const t = document.getElementById("typing");
+  if (t) t.remove();
+}
+
+function send() {
+  const t = inputEl.value.trim();
+  if (!t && attachedFiles.length === 0) return;
+  if (isStreaming) return;
+
+  let fullMessage = t;
+  if (attachedFiles.length > 0) {
+    const fileList = attachedFiles.map(f => f.path).join(", ");
+    fullMessage = "[Attached files: " + fileList + "]\\n\\n" + t;
+  }
+
+  addMessage("user", t, true);
+
+  if (attachedFiles.length > 0) {
+    const tagsDiv = document.createElement("div");
+    tagsDiv.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;padding:0 18px 8px;";
+    attachedFiles.forEach(f => {
+      const tag = document.createElement("span");
+      tag.className = "file-ref";
+      tag.innerHTML = '<span class="file-icon">' + getFileIconHtml(f.name) + '</span><span class="file-name">' + escapeHtml(f.name.split("/").pop()) + '</span>';
+      tagsDiv.appendChild(tag);
     });
-  </script>
-</body>
-</html>`;
+    msgs.appendChild(tagsDiv);
+  }
+
+  vscode.postMessage({ type: "userMessage", text: fullMessage });
+  inputEl.value = "";
+  inputEl.style.height = "auto";
+  attachedFiles = [];
+  renderAttachedFiles();
+  inputEl.focus();
+}
+
+function clearChat() {
+  msgs.innerHTML =
+    '<div class="welcome" id="welcome">' +
+    '<div class="welcome-glow">✦</div>' +
+    '<h3>How can I help?</h3>' +
+    '<p>Ask me to read files, write code, run commands, or explain anything in your project.</p>' +
+    '<div class="suggestions">' +
+    '<button class="suggestion-chip" onclick="useSuggestion(\\\'Explain this project structure\\\')">📁 Explain project</button>' +
+    '<button class="suggestion-chip" onclick="useSuggestion(\\\'Read and explain main.py\\\')">📄 Read a file</button>' +
+    '<button class="suggestion-chip" onclick="useSuggestion(\\\'Find all TODO comments\\\')">🔍 Find TODOs</button>' +
+    '<button class="suggestion-chip" onclick="useSuggestion(\\\'List all files in this directory\\\')">📋 List files</button>' +
+    '</div>' +
+    '</div>';
+  vscode.postMessage({ type: "clearChat" });
+}
+
+window.addEventListener("message", e => {
+  const data = e.data;
+  if (data.type === "restoreHistory") {
+    msgs.innerHTML = "";
+    if (data.history.length === 0) return;
+    hideWelcome();
+    data.history.forEach(m => addMessage(m.role, m.content, false));
+    msgs.scrollTop = msgs.scrollHeight;
+  } else if (data.type === "fileResults") {
+    if (mentionActive) renderMentionDropdown(data.files);
+  } else if (data.type === "startResponse") {
+    isStreaming = true;
+    sendBtn.disabled = true;
+    showTyping();
+  } else if (data.type === "chunk" && !currentBody) {
+    removeTyping();
+    if (data.text.startsWith("🔧")) {
+      addToolBadge(data.text.replace("🔧 ", ""));
+      return;
+    }
+    const agentBlock = addMessage("agent", "", true);
+    currentBody = agentBlock.querySelector(".msg-body");
+    currentBody.setAttribute("data-raw", data.text);
+    currentBody.innerHTML = formatMarkdown(data.text);
+  } else if (data.type === "chunk" && currentBody) {
+    if (data.text.startsWith("🔧")) {
+      currentBody = null;
+      addToolBadge(data.text.replace("🔧 ", ""));
+      return;
+    }
+    const raw = (currentBody.getAttribute("data-raw") || "") + data.text;
+    currentBody.setAttribute("data-raw", raw);
+    currentBody.innerHTML = formatMarkdown(raw);
+    msgs.scrollTop = msgs.scrollHeight;
+  } else if (data.type === "endResponse") {
+    removeTyping();
+    if (currentBody) addFeedbackRow();
+    currentBody = null;
+    isStreaming = false;
+    sendBtn.disabled = false;
+    inputEl.focus();
+  }
+});
+
+inputEl.addEventListener("keydown", e => {
+  if (mentionActive && mentionDropdown.classList.contains("visible")) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      mentionIndex = (mentionIndex + 1) % mentionFiles.length;
+      updateHighlight();
+      return;
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      mentionIndex = (mentionIndex - 1 + mentionFiles.length) % mentionFiles.length;
+      updateHighlight();
+      return;
+    } else if ((e.key === "Enter" || e.key === "Tab") && mentionFiles.length > 0 && mentionIndex >= 0) {
+      e.preventDefault();
+      selectMention(mentionFiles[mentionIndex]);
+      return;
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      closeMention();
+      return;
+    }
+  }
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+
+document.addEventListener("click", e => {
+  if (!e.target.closest(".mention-dropdown") && !e.target.closest("#input")) closeMention();
+});
+</script>
+  </body>
+  </html>`;
   }
 }

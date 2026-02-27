@@ -64,11 +64,17 @@ TOOLS = [
 ]
 
 
-def execute_tool(name: str, args: dict) -> str:
+def execute_tool(name: str, args: dict, workspace_path: str = "") -> str:
     """Execute a tool by name with the given arguments."""
+    # Resolve relative paths against workspace
+    def resolve_path(p):
+        if workspace_path and not os.path.isabs(p):
+            return os.path.join(workspace_path, p)
+        return p
+
     if name == "read_file":
         try:
-            path = args["path"]
+            path = resolve_path(args["path"])
             if not os.path.exists(path):
                 return f"Error: File not found: {path}"
             with open(path, "r") as f:
@@ -82,7 +88,7 @@ def execute_tool(name: str, args: dict) -> str:
 
     elif name == "write_file":
         try:
-            path = args["path"]
+            path = resolve_path(args["path"])
             content = args["content"]
             # Create parent directories if needed
             os.makedirs(os.path.dirname(path) if os.path.dirname(path) else ".", exist_ok=True)
@@ -95,12 +101,14 @@ def execute_tool(name: str, args: dict) -> str:
     elif name == "run_bash":
         try:
             command = args["command"]
+            cwd = workspace_path if workspace_path and os.path.isdir(workspace_path) else None
             result = subprocess.run(
                 command,
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
+                cwd=cwd
             )
             output = result.stdout or ""
             if result.stderr:

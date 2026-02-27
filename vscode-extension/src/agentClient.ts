@@ -9,12 +9,13 @@ const BASE = "http://localhost:8000";
  */
 export async function* streamChat(
     message: string,
-    history: any[]
+    history: any[],
+    workspacePath?: string
 ): AsyncGenerator<string> {
     const res = await fetch(`${BASE}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, history }),
+        body: JSON.stringify({ message, history, workspace_path: workspacePath || "" }),
     });
 
     if (!res.ok) {
