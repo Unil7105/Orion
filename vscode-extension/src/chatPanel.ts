@@ -308,7 +308,7 @@ export class ChatPanel {
     border-top: none;
   }
 
-  .attached-files { display:flex; flex-wrap:wrap; gap:4px; padding:0 0 8px; }
+  .attached-files { display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px 2px 12px; }
   .attached-files:empty { display:none; padding:0; }
   .attached-file {
     display:inline-flex; align-items:center; gap:4px;
@@ -518,35 +518,30 @@ export class ChatPanel {
       mentionDropdown.classList.remove("visible");
     }
 
-    function getFileIcon(filename) {
-      const ext = filename.split('.').pop().toLowerCase();
+    function getFileIconUri(filename) {
+      const ext = filename.includes('.') ? filename.split('.').pop().toLowerCase() : '';
+      let icon = 'document';
       switch (ext) {
-        case 'ts':
-        case 'tsx': return { label: 'TS', color: '#fff', bg: '#3178c6' };
-        case 'js':
-        case 'jsx': return { label: 'JS', color: '#000', bg: '#f7df1e' };
-        case 'py':  return { label: 'PY', color: '#fff', bg: '#3572a5' };
-        case 'css':
-        case 'scss':return { label: 'CS', color: '#fff', bg: '#563d7c' };
-        case 'html':return { label: '</>', color: '#fff', bg: '#e34c26' };
-        case 'json':return { label: '{}', color: '#fff', bg: '#40a0a0' };
-        case 'md':  return { label: 'M↓', color: '#fff', bg: '#555' };
-        case 'svg': return { label: '★', color: '#fff', bg: '#ff6b9d' };
-        case 'rs':  return { label: 'RS', color: '#fff', bg: '#ce422b' };
-        case 'go':  return { label: 'GO', color: '#fff', bg: '#00acd7' };
-        case 'config':
-        case 'toml':
-        case 'yaml':
-        case 'yml': return { label: '⚙', color: '#fff', bg: '#515151' };
-        default:    return { label: ' ', color: '#aaa', bg: '#2a2a3e' };
+        case 'ts': icon = 'typescript'; break;
+        case 'tsx': icon = 'react_ts'; break;
+        case 'js': icon = 'javascript'; break;
+        case 'jsx': icon = 'react'; break;
+        case 'py': icon = 'python'; break;
+        case 'css': icon = 'css'; break;
+        case 'html': icon = 'html'; break;
+        case 'json': icon = 'json'; break;
+        case 'md': icon = 'markdown'; break;
+        case 'svg': icon = 'svg'; break;
+        case 'rs': icon = 'rust'; break;
+        case 'go': icon = 'go'; break;
+        case 'yaml': case 'yml': icon = 'yaml'; break;
+        case 'toml': case 'config': icon = 'settings'; break;
       }
+      return 'https://cdn.jsdelivr.net/gh/PKief/vscode-material-icon-theme@main/icons/' + icon + '.svg';
     }
 
     function getFileIconHtml(filename) {
-      const icon = getFileIcon(filename);
-      return '<div style="width:20px;height:20px;border-radius:4px;background:' + icon.bg + ';' +
-        'color:' + icon.color + ';font-size:9px;font-weight:700;display:flex;' +
-        'align-items:center;justify-content:center;">' + icon.label + '</div>';
+      return '<img src="' + getFileIconUri(filename) + '" style="width:16px;height:16px;object-fit:contain;flex-shrink:0;" alt="file-icon" />';
     }
 
     function renderMentionDropdown(files) {
