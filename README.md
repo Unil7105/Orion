@@ -4,9 +4,9 @@
   <img src="https://img.shields.io/badge/Python-FastAPI-009688?style=for-the-badge&logo=python" />
 </p>
 
-# ✦ Orion
+# ✦ Orion (Premium Local AI Agent)
 
-**A fully local AI coding agent for VS Code, powered by [Ollama](https://ollama.com).**
+**A fully local AI coding agent for VS Code, engineered with a premium Cursor-style minimalist UI. Powered by [Ollama](https://ollama.com).**
 No API keys. No cloud. Everything runs privately on your machine.
 
 ---
@@ -15,13 +15,13 @@ No API keys. No cloud. Everything runs privately on your machine.
 
 | Feature | Description |
 |---------|-------------|
-| 💬 **Chat Panel** | Modern chat UI with streaming responses, markdown rendering & typing animations |
-| 🔧 **Tool Use** | Agent autonomously reads files, writes code, and runs bash commands |
-| 📄 **@File Mentions** | Type `@` to reference workspace files in your conversation |
+| 🎨 **Premium UI/UX** | Deep dark navy theme (`#1a1a2e`) mirroring modern editors (Cursor/Copilot), clean floating chat inputs, and text-embedded shimmer animations. |
+| 💬 **Context-Aware Chat** | Seamless chat panel with dynamic streaming, smart scroll, and real-time markdown rendering. |
+| 🗂️ **Advanced @ Mentions** | Type `@` to invoke a fully keyboard-navigable (`ArrowUp`/`ArrowDown`/`Enter`) file search dropdown. |
+| 🖼️ **Authentic File Icons** | Integrates native **VS Code Material Theme Icons** automatically mapping file extensions (`.ts`, `.py`, `.json`, etc.) perfectly mimicking your VS Code sidebar. |
+| 🔧 **Tool Use** | Agent autonomously reads/writes files and securely runs terminal commands in your workspace directory. |
 | ⚡ **Inline Suggestions** | AI code completions via `Cmd+Shift+A` (Mac) / `Ctrl+Shift+A` |
-| 📝 **File Explanations** | Instantly explain any open file with one command |
-| 💾 **Persistent Chat** | Conversations saved and restored across sessions |
-| 🎯 **Quick Actions** | Suggestion chips to get started fast |
+| 💾 **Persistent Chat** | Conversations saved and restored across sessions, including your pinned contexts. |
 
 ---
 
@@ -29,10 +29,10 @@ No API keys. No cloud. Everything runs privately on your machine.
 
 ```
 Orion/
-├── vscode-extension/       # TypeScript — VS Code extension
+├── vscode-extension/       # TypeScript — VS Code extension UI
 │   ├── src/
 │   │   ├── extension.ts    # Entry point, registers commands
-│   │   ├── chatPanel.ts    # Chat UI (WebView)
+│   │   ├── chatPanel.ts    # Webview styling, custom HTML, and listeners
 │   │   └── agentClient.ts  # HTTP client to backend
 │   └── package.json
 │
@@ -48,9 +48,9 @@ Orion/
 
 | Layer | Tech | Role |
 |-------|------|------|
-| **Frontend** | TypeScript, VS Code WebView | Chat UI, commands, @mentions, inline completions |
-| **Backend** | Python, FastAPI | ReAct agent loop, tool execution, streaming |
-| **LLM** | Ollama (Llama 3.2) | Local inference, no API keys |
+| **Frontend** | TypeScript, VS Code WebView | Clean UI, file mentions, tool badges, keyboard listeners |
+| **Backend** | Python, FastAPI | ReAct agent loop, workspace path forwarding, tool execution |
+| **LLM** | Ollama (Llama 3.2 / Mistral) | Local inference, zero data tracking |
 
 ---
 
@@ -58,17 +58,18 @@ Orion/
 
 ### Prerequisites
 
-- **[Ollama](https://ollama.com)** installed and running
+- **[Ollama](https://ollama.com)** installed and running locally
 - **Node.js** (v18+)
 - **Python** (3.10+)
 
-### 1. Pull a model
+### 1. Pull the Models
 
 ```bash
 ollama pull llama3.2
+ollama pull mistral  # Recommended for fast inline suggestions
 ```
 
-### 2. Start the backend
+### 2. Start the Backend
 
 ```bash
 cd agent-backend
@@ -79,21 +80,22 @@ uvicorn main:app --reload --port 8000
 ```
 
 You should see:
-```
+```text
 INFO:     Uvicorn running on http://127.0.0.1:8000
 INFO:     Application startup complete.
 ```
 
-### 3. Launch the extension
+### 3. Launch the Extension
 
 ```bash
 cd vscode-extension
 npm install
+npm run compile
 ```
 
 1. Open the `vscode-extension/` folder in VS Code
-2. Press **F5** to launch the Extension Development Host
-3. Look for the **🤖 AI Agent** icon in the Activity Bar
+2. Press **F5** to launch the Extension Development Host window
+3. Look for the **🤖 AI Agent** icon in the left Activity Bar
 
 ---
 
@@ -101,37 +103,39 @@ npm install
 
 | Command | Keybinding | Description |
 |---------|------------|-------------|
-| `My Agent: Open Chat` | — | Opens the chat panel |
-| `My Agent: Explain This File` | — | Explains the current file |
-| `My Agent: Suggest Completion` | `Cmd+Shift+A` | Inline AI suggestion at cursor |
+| `My Agent: Open Chat` | — | Opens the chat webview panel |
+| `My Agent: Explain This File` | — | Highlights current active file and explains it |
+| `My Agent: Suggest Completion` | `Cmd+Shift+A` | Fast inline AI suggestion at cursor position |
+
+*Pro-tip: When the chat panel is open, use the `@` prefix to attach files. Use `ArrowUp/ArrowDown` and `Enter` to navigate without leaving the keyboard.*
 
 ---
 
 ## 🔧 Configuration
 
-Edit `agent-backend/.env` to customize:
+Edit `agent-backend/.env` to customize your local endpoint:
 
 ```env
 OLLAMA_BASE_URL=http://localhost:11434/v1
 ```
 
-Change the model in `agent-backend/agent/loop.py`:
+Switch out intelligence models in `agent-backend/agent/loop.py`:
 
 ```python
-DEFAULT_MODEL = "llama3.2:latest"   # or "llama3.1:8b", "mistral:latest", etc.
+DEFAULT_MODEL = "llama3.2:latest"
 ```
 
 ---
 
 ## 🛠 Available Tools
 
-The agent has access to these tools during conversation:
+The AI continuously spins up thought loops and executes these local commands autonomously:
 
 | Tool | Description |
 |------|-------------|
-| `read_file(path)` | Read contents of any file |
-| `write_file(path, content)` | Create or overwrite a file |
-| `run_bash(command)` | Execute a shell command |
+| `read_file(path)` | Analyzes local file contents |
+| `write_file(path, content)` | Directly replaces or manipulates code within your active workspace |
+| `run_bash(command)` | Safe execution of terminal lines |
 
 ---
 
